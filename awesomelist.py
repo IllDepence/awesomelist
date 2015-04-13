@@ -49,10 +49,23 @@ class AnimeList:
             cdict_processed.append(Anime(al_data))
         self.completed = cdict_processed
 
+        hdict_raw = self.anilist_data['lists']['on_hold']
+        hdict_processed = []
+        for al_data in hdict_raw:
+            hdict_processed.append(Anime(al_data))
+        self.on_hold = hdict_processed
+
+        ddict_raw = self.anilist_data['lists']['dropped']
+        ddict_processed = []
+        for al_data in ddict_raw:
+            ddict_processed.append(Anime(al_data))
+        self.dropped = ddict_processed
+
 class Watcher:
-    def __init__(self, name, eps):
+    def __init__(self, name, eps, state):
         self.name = name
         self.eps = eps
+        self.state = state
 
 class CompAnime:
     def __init__(self, al_id, title, img, airing):
@@ -61,8 +74,8 @@ class CompAnime:
         self.img = img
         self.airing = airing
         self.watchers = []
-    def addWatcher(self, name, eps):
-        self.watchers.append(Watcher(name, eps))
+    def addWatcher(self, name, eps, state):
+        self.watchers.append(Watcher(name, eps, state))
 
 class CompList:
     def __init__(self, lists):
@@ -73,12 +86,18 @@ class CompList:
             for w in l.watching:
                 if not w.al_id in done_ids:
                     self.cdict[w.al_id] = CompAnime(w.al_id, w.title, w.img, w.airing)
-                self.cdict[w.al_id].addWatcher(l.owner, w.ep_seen)
+                self.cdict[w.al_id].addWatcher(l.owner, w.ep_seen, 'w')
                 done_ids.append(w.al_id)
         for l in lists:
             for c in l.completed:
                 if c.al_id in done_ids:
-                    self.cdict[c.al_id].addWatcher(l.owner, c.ep_seen)
+                    self.cdict[c.al_id].addWatcher(l.owner, c.ep_seen, 'c')
+            for c in l.on_hold:
+                if c.al_id in done_ids:
+                    self.cdict[c.al_id].addWatcher(l.owner, c.ep_seen, 'h')
+            for c in l.dropped:
+                if c.al_id in done_ids:
+                    self.cdict[c.al_id].addWatcher(l.owner, c.ep_seen, 'd')
         for i, ca in self.cdict.items():
             ca.watchers = sorted(ca.watchers, key=lambda k: -int(k.eps))
             self.clist.append(ca)
@@ -154,6 +173,10 @@ def main():
         anime_lists.append(AnimeList(anilist_data))
     comp_list = CompList(anime_lists)
     t = datetime.datetime.now()
+    mo = '{:02d}'.format(t.month)
+    d = '{:02d}'.format(t.day)
+    h = '{:02d}'.format(t.hour+2)
+    mi = '{:02d}'.format(t.minute)
     page = """<!doctype html>
 <html>
 <head>
@@ -186,22 +209,32 @@ background-color: #e1e1e1;
 h3 {
 margin: 0 0 5px 0;
 }
+h3, p {
+font-family: sans-serif;
+}
 </style>
 </head>
 <body>"""
     page += """<p>Last update: {0}.{1}.{2}, {3}:{4}</p>
-<div id="main">""".format(t.day, t.month, t.year, t.hour+2, t.minute)
+<div id="main">""".format(d, mo, t.year, h, mi)
     for ca in comp_list.clist:
         class_extra = ' notairing'
         if ca.airing > 0:
             class_extra = ' airing'
         page += """<div class="entry{3}">
 <h3>{1}</h3>
-<a href="{0}"><img src="{2}"></a>
+<a href="http://anilist.co/anime/{0}"><img src="{2}"></a>
 <div class="watchers">
 """.format(ca.al_id, ca.title, ca.img, class_extra)
         for w in ca.watchers:
-            page += '<p>{0}: {1}</p>'.format(w.name, w.eps)
+            extra = ''
+            if w.state == 'c':
+                extra = ' ✔'
+            if w.state == 'h':
+                extra = ' (on-hold)'
+            if w.state == 'd':
+                extra = ' (dropped)'
+            page += '<p>{0}: {1}{2}</p>'.format(w.name, w.eps, extra)
         page += '</div></div>'
     page += """</div>
 </body>
