@@ -172,10 +172,10 @@ def main():
         anilist_data = getAnilistData(u)
         anime_lists.append(AnimeList(anilist_data))
     comp_list = CompList(anime_lists)
-    t = datetime.datetime.now()
+    t = datetime.datetime.now()+datetime.timedelta(0, 7200)
     mo = '{:02d}'.format(t.month)
     d = '{:02d}'.format(t.day)
-    h = '{:02d}'.format(t.hour+2)
+    h = '{:02d}'.format(t.hour)
     mi = '{:02d}'.format(t.minute)
     page = """<!doctype html>
 <html>
